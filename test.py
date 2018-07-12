@@ -6,7 +6,7 @@ import subprocess
 # Verify LVM Setup using lvs, vgs, pvs 
 
 def setup_git_repo():
-	git_ret = subprocess.call('git clone -b task-flow https://github.com/dwlehman/linux-storage-role', shell=True)
+	git_ret = subprocess.call('git clone https://github.com/dwlehman/linux-storage-role', shell=True)
 
 	if git_ret:
 		return True
@@ -58,6 +58,10 @@ def run_tests(test_file_path):
 	return num_successes, num_tests
 
 def main():
+<<<<<<< HEAD
+=======
+	# This is pretty messy
+>>>>>>> 4bea77cc2e7e9efce18eb9228ab47e44a48ea4e4
     locate_cmd = "locate -w linux-storage-role | awk 'NR==1 { print $1 }'"
     locate_buf = subprocess.check_output(locate_cmd, shell=True)
     locate_buf = locate_buf.replace('\n', '')
