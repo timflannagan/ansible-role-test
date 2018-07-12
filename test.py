@@ -20,23 +20,21 @@ def get_vgs():
 
 		for (counter, vg) in enumerate(vgs):
 			print('VG_%d: %s' % (counter, vg))
-
+                
 	except subprocess.CalledProcessError as e:
 	    print('Exception from vgs subprocess command: ', e.output)
 	    return 
 
-def get_num_tests():
-	num_tests = 0
-
-	with open('linux-storage-role/tests/test.yml', 'r') as test_file:
-		lines = test_file.read()
-		print('Line: ', lines)
+def get_num_tests(test_file_path):
+	with open(test_file_path, 'r') as test_file:
+		line = test_file.read()
+                num_tests = line.count('include_role')
 
 	return num_tests
 
-def run_tests():
+def run_tests(test_file_path):
 	num_successes = 0
-	num_tests = get_num_tests()
+	num_tests = get_num_tests(test_file_path)
 
 	run_cmd = 'ansible-playbook -K tests/test.yml'
 
@@ -45,11 +43,18 @@ def run_tests():
 	return num_successes, num_tests
 
 def main():
-	# if not setup_git_repo():
-	# 	print('Was unable to setup git repo')
-	# else:
-	num_success, num_tests = run_tests()
-	print('Return %d/%d' % (num_success, num_tests))
+        locate_cmd = "locate -w linux-storage-role | awk 'NR==1 { print $1 }'"
+        locate_buf = subprocess.check_output(locate_cmd, shell=True)
+        locate_buf = locate_buf.replace('\n', '')
+
+        if not len(locate_buf):
+                setup_git_repo()
+                file_path = '~/linux-storage-role/tests/test.yml'
+
+        file_path = locate_buf + '/tests/test.yml'
+	num_success, num_tests = run_tests(file_path)
+
+	print('> Testing results: %d/%d total' % (num_success, num_tests))
 
 if __name__ == '__main__':
 	main()
