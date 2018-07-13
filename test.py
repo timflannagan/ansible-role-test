@@ -30,45 +30,44 @@ def get_num_tests(test_file_path):
 
     return num_tests
 
-def verify_vgs(device_type, actual_vgs, expected_vg):
-    if device_type == 'disk' and expected_vg == '':
+def verify_vgs(actual_vgs, expected):
+    if expected['device_type'] == 'disk' and expected['lvm_vg'] == '':
         return True
-    elif expected_vg in actual_vgs:
+    elif expected['lvm_vgs'] in actual_vgs:
         return True
 
     return False
 
-def verify_mount(device_name, expected_mount):
-    lsblk_cmd = ("lsblk | grep %s | awk '{ print $1, $7 }'" % device_name)
+def verify_mount(expected):
+    lsblk_cmd = ("lsblk | grep %s | awk '{ print $1, $7 }'" % expected['device_name'])
     lsblk_buf = subprocess.check_output(lsblk_cmd, shell=True)
     lsblk_buf = lsblk_buf[6:].replace('\n', '')
 
     lsblk_buf = lsblk_buf.split()
 
     # Not entirely sure what is suppose to come first in the 'in' keyword
-    if (not lsblk_buf[0] in device_name) or (not lsblk_buf[1] in expected_mount):
+    if (not lsblk_buf[0] in expected['device_name']) or (not lsblk_buf[1] in expected['mount_point']):
         print('***Check failed with different mount info in lsblk command***')
         return False
 
     return True
 
-# Might need to split this up into two separate functions
-def verify_fs_type(device_name, expected_fs_type):
-    blkid_cmd = ("blkid | grep %s | awk '{ print $3 }'" % device_name)
+def verify_fs_type(expected):
+    blkid_cmd = ("blkid | grep %s | awk '{ print $3 }'" % expected['device_name'])
     blkid_buf = subprocess.check_output(blkid_cmd, shell=True)
     blkid_buf = blkid_buf[5:].replace('\n', '').replace('"', '')
 
     # This seems awkward to call subprocess on reading a file
-    cat_cmd = ("cat /etc/fstab | grep %s | awk '{ print $1, $3 }'" % device_name)
+    cat_cmd = ("cat /etc/fstab | grep %s | awk '{ print $1, $3 }'" % expected['device_name'])
     cat_buf = subprocess.check_output(cat_cmd, shell=True)
     cat_buf = cat_buf.split()
 
     # Look more into 'in' keyword when using strings
-    if (not device_name in cat_buf[0]) or (not expected_fs_type in cat_buf[1]):
+    if (not expected['device_name'] in cat_buf[0]) or (not expected['fs_type'] in cat_buf[1]):
         print('***Check failed with differing information in /etc/fstab file***')
         return False
 
-    if not blkid_buf in expected_fs_type:
+    if not blkid_buf in expected['fs_type']:
         print('***Check failed with differing file system type in blkid***')
         return False
 
@@ -92,22 +91,22 @@ def run_tests(test_file_path):
 
     for (counter, test) in enumerate(test_list):
         fail = False
-
-        if not verify_vgs('disk', vgs_list, ''):
-            fail = True
-            print('Test %d failed with volume groups' % counter)
-
-        if not verify_mount('foo-test1', '/opt/test1/'):
-            fail = True
-            print('Test %d failed with mount points' % counter)
-
-        if not verify_fs_type('foo-test1', 'ext'):
-            fail = True
-            print('Test %d failed with different file system types' % counter)
-
-        if not fail:
-            print('Test %d passed all tests' % counter)
-            num_successes += 1
+        # Not ready to test yet
+        # if not verify_vgs('disk', vgs_list, ''):
+        #     fail = True
+        #     print('Test %d failed with volume groups' % counter)
+        #
+        # if not verify_mount('foo-test1', '/opt/test1/'):
+        #     fail = True
+        #     print('Test %d failed with mount points' % counter)
+        #
+        # if not verify_fs_type('foo-test1', 'ext'):
+        #     fail = True
+        #     print('Test %d failed with different file system types' % counter)
+        #
+        # if not fail:
+        #     print('Test %d passed all tests' % counter)
+        #     num_successes += 1
 
     # Call the ansible_run_cmd and verify results from expectations
     # If test is successful, increment number of successes, else pass

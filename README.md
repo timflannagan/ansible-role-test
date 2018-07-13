@@ -20,4 +20,7 @@ Current Problems:
 3. Parsing the test.yml file would be difficult
 	- Could have a series of functions that verifies lsblk, /etc/fstab, blkid
 		info against a test's expected results
-			* Could pass a series of variables, then a dictionary of expected results 
+			* Could pass a series of variables, then a dictionary of expected results
+4. Figure out how to ssh onto bos.csb computer
+5. Most of the function use an 'expected' parameter, which is a dictionary
+	* This unfortunately will have to be hard-coded, if going in this direction 
