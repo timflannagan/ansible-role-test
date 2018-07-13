@@ -5,15 +5,6 @@ import subprocess
 # Use lsblk/blkid to check fs_type
 # Verify LVM Setup using lvs, vgs, pvs
 
-def setup_git_repo():
-    '''Clone relevant ansible role repo'''
-    git_ret = subprocess.call('git clone https://github.com/dwlehman/linux-storage-role', shell=True)
-
-    if git_ret:
-        return True
-
-    return False
-
 def get_vgs():
     '''Return a list of used volume group names'''
     result = []
@@ -122,20 +113,13 @@ def run_tests(test_file_path):
     # If test is successful, increment number of successes, else pass
     # Improve by having better debugging; what test failed and why
     # Could do this with a dictionary
-
     return num_successes, num_tests
 
 def main():
     locate_cmd = "locate -w linux-storage-role | awk 'NR==1 { print $1 }'"
-    locate_buf = subprocess.check_output(locate_cmd, shell=True)
-    locate_buf = locate_buf.replace('\n', '')
-
-    if not len(locate_buf):
-        setup_git_repo()
-        file_path = '~/linux-storage-role/tests/test.yml'
-
     file_path = locate_buf + '/tests/test.yml'
     num_success, num_tests = run_tests(file_path)
+
     print('> Testing results: %d/%d total' % (num_success, num_tests))
 
 if __name__ == '__main__':
