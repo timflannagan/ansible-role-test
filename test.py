@@ -3,9 +3,10 @@
 import subprocess
 # Tests: verify that lsblk and /etc/fstab has similar mount point matches
 # Use lsblk/blkid to check fs_type
-# Verify LVM Setup using lvs, vgs, pvs 
+# Verify LVM Setup using lvs, vgs, pvs
 
 def setup_git_repo():
+    '''Clone relevant ansible role repo'''
     git_ret = subprocess.call('git clone https://github.com/dwlehman/linux-storage-role', shell=True)
 
     if git_ret:
@@ -23,10 +24,11 @@ def get_vgs():
 
         for (counter, vg) in enumerate(vgs):
             result.append(vg)
-                
+
+    # Might need to change this, look into subprocess exceptions
     except subprocess.CalledProcessError as e:
         print('Exception from vgs subprocess command: ', e.output)
-        
+
     return result
 
 def get_num_tests(test_file_path):
@@ -34,8 +36,7 @@ def get_num_tests(test_file_path):
     with open(test_file_path, 'r') as test_file:
         lines = test_file.read()
         num_tests = lines.count('include_role')
-        
-        # Do parsing/populating here
+
     return num_tests
 
 def verify_vgs(device_type, actual_vgs, expected_vg):
@@ -44,18 +45,19 @@ def verify_vgs(device_type, actual_vgs, expected_vg):
     elif expected_vg in actual_vgs:
         return True
 
-    return False 
+    return False
 
 def verify_mount(device_name, expected_mount):
     lsblk_cmd = ("lsblk | grep %s | awk '{ print $1, $7 }'" % device_name)
     lsblk_buf = subprocess.check_output(lsblk_cmd, shell=True)
     lsblk_buf = lsblk_buf[6:].replace('\n', '')
-    
+
     lsblk_buf = lsblk_buf.split()
 
     # Not entirely sure what is suppose to come first in the 'in' keyword
     if (not lsblk_buf[0] in device_name) or (not lsblk_buf[1] in expected_mount):
-        return False 
+        print('***Check failed with different mount info in lsblk command***')
+        return False
 
     return True
 
@@ -65,10 +67,12 @@ def verify_fs_type(device_name, expected_fs_type):
     blkid_buf = subprocess.check_output(blkid_cmd, shell=True)
     blkid_buf = blkid_buf[5:].replace('\n', '').replace('"', '')
 
+    # This seems awkward to call subprocess on reading a file
     cat_cmd = ("cat /etc/fstab | grep %s | awk '{ print $1, $3 }'" % device_name)
     cat_buf = subprocess.check_output(cat_cmd, shell=True)
     cat_buf = cat_buf.split()
 
+    # Look more into 'in' keyword when using strings
     if (not device_name in cat_buf[0]) or (not expected_fs_type in cat_buf[1]):
         print('***Check failed with differing information in /etc/fstab file***')
         return False
@@ -91,6 +95,7 @@ def run_tests(test_file_path):
     vgs_list = get_vgs()
     test_list = []
 
+    # Check if this is the most practical usage
     for test in range(num_tests):
         test_list.append({'device_type': 'lvm', 'device_name': None, 'disks': None, 'lvm_vg': None, 'mount_point': None, 'size': '100%', 'state': 'present', 'fs_type': 'xfs' })
 
@@ -98,9 +103,9 @@ def run_tests(test_file_path):
         fail = False
 
         if not verify_vgs('disk', vgs_list, ''):
-            fail = True 
+            fail = True
             print('Test %d failed with volume groups' % counter)
-            
+
         if not verify_mount('foo-test1', '/opt/test1/'):
             fail = True
             print('Test %d failed with mount points' % counter)
@@ -116,7 +121,7 @@ def run_tests(test_file_path):
     # Call the ansible_run_cmd and verify results from expectations
     # If test is successful, increment number of successes, else pass
     # Improve by having better debugging; what test failed and why
-    # Could do this with a dictionary 
+    # Could do this with a dictionary
 
     return num_successes, num_tests
 
