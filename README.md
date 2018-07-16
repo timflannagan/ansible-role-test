@@ -8,8 +8,10 @@ To-Do:
 1. Parse the test.yml file in tests directory
 	- This is going to be problematic, and unnecessarily complicated
 2. Finish creating all verification tests
-	- Check blkid/lsblk info against /etc/fstab file
 3. Look into adding unit testing using pytest
+4. Implement testing for size comparisons
+5. Check LVM2_member in lsblk -fi against device_type 
+6. Restruction some of the verification functions as they do the same thing
 
 Current Problems:
 =====
