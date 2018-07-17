@@ -120,6 +120,14 @@ def verify_fs_type(expected):
 
     return rval
 
+def verify_size(expected):
+    if expected['size'] == '100%':
+        vgdisplay_cmd = "sudo vgdisplay -v %s | grep -e Free\ Pe -e VG\ Size" % expected['lvm_vg']
+        vgdisplay_buf = subprocess.check_output(vgdisplay_cmd, shell=True)
+        # Debug: print(vgdisplay_buf)
+
+    return False
+
 def run_tests(test_file_path):
     '''Driver for test framework'''
     num_tests = get_num_tests(test_file_path)
@@ -157,6 +165,9 @@ def run_tests(test_file_path):
             fail = True
         
         if not verify_fs_type(test_list[counter]):
+            fail = True
+
+        if not verify_size(test_list[counter]):
             fail = True
         
         if not fail:
