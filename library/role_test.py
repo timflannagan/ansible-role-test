@@ -6,6 +6,7 @@
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils import facts
+import subprocess
 
 # Both LVM and disk device types will have mounted file systems
 # def verify_fs_type(module_params):
@@ -59,18 +60,70 @@ from ansible.module_utils import facts
 #
 #     return tests_failed, num_successes, num_tests
 
-def test_absent_status(role_variables, module_results):
-    '''Test driver for absent status: return False is no tests failed'''
-    return True, ['Check failed with different mount points']
+def verify_mount(role_variables, fail_reasons):
+	is_default = False
+	failed = False
 
-def test_present_status(role_variables, module_results):
+	if role_variables['fs_type'] is None:
+		role_variables['fs_type'] = 'xfs'
+
+	if role_variables['device_type'] is None:
+		is_default = True 
+
+		try:
+			lsblk_cmd = "lsblk -fi | grep %s | awk '{ print $1, $2, $4 }'" % role_variables['device_name']
+		except: 
+			fail_reasons.append('Subprocess command failed in verify_mount function. It is possible the device name is not defined: %s' % role_variables['device_name'])
+			return False
+	else:
+		lsblk_cmd = "lsblk -fi | grep %s | awk '{ print $1, $2, $4 }'" % role_variables['disks[0]']
+
+	lsblk_buf = subprocess.check_output(lsblk_cmd, shell=True)
+
+	if is_default:
+		lsblk_buf = lsblk_buf.replace('|-', '').replace("'-", "").split()
+		expected_name = role_variables['lvm_vg'] + '-' + role_variables['device_name']
+ 
+		if not expected_name in lsblk_buf[0]:
+			fail_reasons.append('Check failed with differing expected device name in lsblk output: %s -> %s' % (expected_name, lsblk_buf[0]))
+			failed = True
+
+		if not role_variables['fs_type'] in lsblk_buf[1]:
+			fail_reasons.append('Check failed with differing fs types: %s -> %s' % (role_variables['fs_type'], lsblk_buf[1]))
+			failed = True
+
+		if not role_variables['mount_point'] in lsblk_buf[2]:
+			fail_reasons.append('Check failed with differing mount points: %s -> %s' % (role_variables['mount_point'], lsblk_buf[2]))
+			failed = True
+	else:
+		fail_reasons.append('Somehow this passed with %s -> %d' % (role_variables['device_type']), is_default)
+
+	return failed
+
+def verify_fs_type(role_variables, fail_reasons):
+	fail_reasons.append('This is a stub')
+	return True
+
+def test_absent_status(role_variables, results):
+    '''Test driver for absent status: return False is no tests failed'''
+    return True
+
+def test_present_status(role_variables, results):
     '''Test driver for present status: return False is no tests failed'''
-    fail_reasons = []
-    fail_reasons.append('Check failed with differing mount points: %s -> %s' % (role_variables['mount_point'], '/opt/'))
-    fail_reasons.append('Check failed with differing fs types: %s -> %s' % (role_variables['fs_type'], 'ext4'))
-    # Check whether the device is a disk device
-    # if role_variables['device_type'] is not None:
-    return True, fail_reasons
+    failed = False
+
+    if verify_fs_type(role_variables, results['tests_failed']):
+    	failed = True
+    else:
+    	results['num_successes'] += 1
+
+    if verify_mount(role_variables, results['tests_failed']):
+    	failed = True 
+    else:
+    	results['num_successes'] += 1
+
+    # Probably need to reword these variables at some point
+    return failed
 
 def run_module():
     '''Setup and initialize all relevant ansible module data'''
@@ -101,21 +154,14 @@ def run_module():
 
     # Note: present status (default) is going to build up the specified device variables
     if module.params['status'] is not None:
-        tests_failed, debug_list = test_absent_status(module.params, results)
+        tests_failed = test_absent_status(module.params, results)
     else:
-        tests_failed, debug_list = test_present_status(module.params, results)
+        tests_failed = test_present_status(module.params, results)
 
     if not tests_failed:
         module.exit_json(**results)
     else:
-        module.fail_json(msg="{}".format(debug_list))
-
-    # results['num_successes'] = results_dict['num_successes']
-    # results['num_tests'] = results_dict['num_tests']
-    # results['tests_failed'] = results_dict['tests_failed']
-
-    # if results['num_tests'] != 0 or results['num_successes'] != 0:
-
+        module.fail_json(msg="{}".format(results['tests_failed']))
 
 def main():
     run_module()
