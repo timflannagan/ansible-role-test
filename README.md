@@ -7,9 +7,8 @@ To-Do:
 ======
 1. Refactor the names of the verify_fs and verify_mount:
 	- These functions verify the same things, but use different methods
-2. Implement verify_disk_mount stub
-3. Implement test_absent_status stub
-	- This will need significant work 
+2. Implement the verify_size_percentage function
+    - This should be the last big thing to implement
 
 Current Problems:
 =====

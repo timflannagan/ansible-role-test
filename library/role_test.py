@@ -149,9 +149,13 @@ def verify_fs_type(role_variables, fail_reasons):
 	return failed
 
 def verify_size_percentage(role_variables, fail_reasons):
-	has_failed = False 
-	fail_reasons.append('verify_size_percentage has not been implemented yet')
-	return has_failed 
+	failed = False 
+	# fail_reasons.append('verify_size_percentage has not been implemented yet')
+
+	# size[0] = percentage, size[1] is type of specified space
+	size_buf = role_variables['size'].split()
+
+	return failed 
 
 def verify_size(role_variables, fail_reasons):
 	'''Check if lvm device has correct size'''
@@ -188,20 +192,78 @@ def verify_size(role_variables, fail_reasons):
 		if 'mib' in role_variables['size'].lower():
 			role_variables['size'] = role_variables['size'].lower().replace('mib', 'mb')
 
-		if not role_variables['size'] in lsblk_buf[0].lower():
+		if not role_variables['size'].lower() in lsblk_buf[0].lower():
 			fail_reasons.append('Check failed as there are differing sizes in lsblk: %s -> %s' % (role_variables['size'], lsblk_buf[0]))
 			failed = True 
 
 	return failed 
 
-def test_absent_status(role_variables, results):
+def verify_fstab_info(role_variables, fail_reasons):
+	'''Check the /etc/fstab info and make sure no disk/lvm device is listed there when state is specified as absent'''
+	failed = False 
+
+	if role_variables['device_type'] is not None:
+		if role_variables['device_type'] in 'disk':
+			expected_name = '/dev/' + role_variables['disks'][0]
+		else:
+			expected_name = '/dev/mapper/' + role_variables['lvm_vg'] + '-' + role_variables['device_name']
+	else:
+		expected_name = '/dev/mapper/' + role_variables['lvm_vg'] + '-' + role_variables['device_name']
+
+	cat_cmd = "cat /etc/fstab | grep %s | awk '{ print $1, $2, $3 }'" % expected_name
+	cat_buf = subprocess.check_output(cat_cmd, shell=True).replace('\n', '').split()
+
+	if len(cat_buf) is not 0:
+		fail_reasons.append('Check failed as %s is still listed in the /etc/fstab file' % expected_name)
+		failed = True
+
+	return failed
+
+def verify_lsblk_mount(role_variables, fail_reasons):
+	'''Check if corresponding device type is nonexistent in lsblk command output'''
+	failed = False
+
+	# This is poor structure atm
+	if role_variables['device_type'] is not None:
+		if role_variables['device_type'] in 'disk':
+			expected_name = role_variables['disks'][0]
+		else:
+			expected_name = role_variables['lvm_vg'] + '-' + role_variables['device_name']
+	else:
+		expected_name = role_variables['lvm_vg'] + '-' + role_variables['device_name']
+
+	lsblk_cmd = "lsblk | grep %s | awk '{ print $7 }'" % expected_name 
+	lsblk_buf = subprocess.check_output(lsblk_cmd, shell=True).replace('\n', '').split()
+
+	# For device type disk: there should be a listing in lsblk but no mountpoint in the 7th columb
+	# For device type lvm: there should be no listing at all in lsblk
+	# Might have to fine tune this as this develops more and check on the device type again and parse buffer depending on that
+	if len(lsblk_buf) is not 0:
+		fail_reasons.append('Check failed as %s is still mounted in lsblk command' % expected_name)
+		failed = True
+
+	return failed
+
+def test_absent_state(role_variables, results):
     '''Test driver for absent status: return False is no tests failed'''
     failed = False 
-    fail_reasons.append('Check failed as test_absent_status is currently a stub')
+
+    if verify_fstab_info(role_variables, results['tests_failed']):
+    	failed = True
+    else:
+    	results['num_successes'] += 1
+
+    if verify_lsblk_mount(role_variables, results['tests_failed']):
+    	failed = True
+    else:
+    	results['num_successes'] += 1
+
+    # To-Do: hardcoded for now, find more elegant solution
+    results['num_tests'] += 2
 
     return failed 
 
-def test_present_status(role_variables, results):
+def test_present_state(role_variables, results):
     '''Test driver for present status: return False is no tests failed'''
     failed = False
 
@@ -235,6 +297,10 @@ def check_invalid_vars(role_variables, results):
 		results['tests_failed'].append('Check failed as the device type is disk, but lvm_vg name is defined')
 		failed = True
 
+	if len(role_variables['disks']) <= 0:
+		results['tests_failed'].append('Check failed as the size of the specified disks is 0')
+		failed = True
+
 	return failed
 
 def run_module():
@@ -250,7 +316,7 @@ def run_module():
         mount_point         = dict(type='str', required='True'),
         mount_options       = dict(type='str'),
         lvm_vg              = dict(type='str'),
-        status              = dict(type='str')
+        state               = dict(type='str')
     )
     # Will probably change as this module develops more
     results = dict(
@@ -265,16 +331,16 @@ def run_module():
     )
 
     # Note: present status (default) is going to build up the specified device variables
-    if module.params['status'] is not None:
-        tests_failed = test_absent_status(module.params, results)
-    else:
-        tests_failed = test_present_status(module.params, results)
-
     # Will need to change this at some point 
-	if not check_invalid_vars(module.params, results['tests_failed']):
-		module.exit_json(**results)
-	else: 
-		module.exit_json(msg="{}".format(results['tests_failed']))
+    if not check_invalid_vars(module.params, results['tests_failed']):
+	    if (module.params['state'] is not None) and (module.params['state'] in 'absent'):
+		    tests_failed = test_absent_state(module.params, results)
+	    else:
+	        tests_failed = test_present_state(module.params, results)
+
+	    module.exit_json(**results)
+	# else:
+	# 	module.exit_json(msg="{}".format(results['tests_failed']))
  
 
 def main():
