@@ -9,6 +9,7 @@ To-Do:
 	- These functions verify the same things, but use different methods
 2. Implement the verify_size_percentage function
     - This should be the last big thing to implement
+3. Refactor the return value on most of these functions
 
 Current Problems:
 =====

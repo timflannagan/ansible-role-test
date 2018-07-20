@@ -202,11 +202,8 @@ def verify_fstab_info(role_variables, fail_reasons):
 	'''Check the /etc/fstab info and make sure no disk/lvm device is listed there when state is specified as absent'''
 	failed = False 
 
-	if role_variables['device_type'] is not None:
-		if role_variables['device_type'] in 'disk':
-			expected_name = '/dev/' + role_variables['disks'][0]
-		else:
-			expected_name = '/dev/mapper/' + role_variables['lvm_vg'] + '-' + role_variables['device_name']
+	if role_variables['device_type'] is not None and role_variables['disks'] in 'disk':
+		expected_name = '/dev/' + role_variables['disks'][0]
 	else:
 		expected_name = '/dev/mapper/' + role_variables['lvm_vg'] + '-' + role_variables['device_name']
 
@@ -223,12 +220,8 @@ def verify_lsblk_mount(role_variables, fail_reasons):
 	'''Check if corresponding device type is nonexistent in lsblk command output'''
 	failed = False
 
-	# This is poor structure atm
-	if role_variables['device_type'] is not None:
-		if role_variables['device_type'] in 'disk':
-			expected_name = role_variables['disks'][0]
-		else:
-			expected_name = role_variables['lvm_vg'] + '-' + role_variables['device_name']
+	if role_variables['device_type'] is not None and role_variables['device_type'] in 'disk':
+		expected_name = role_variables['disks'][0]
 	else:
 		expected_name = role_variables['lvm_vg'] + '-' + role_variables['device_name']
 
