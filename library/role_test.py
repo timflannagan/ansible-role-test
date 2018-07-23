@@ -150,10 +150,39 @@ def verify_fs_type(role_variables, fail_reasons):
 
 def verify_size_percentage(role_variables, fail_reasons):
 	failed = False 
-	# fail_reasons.append('verify_size_percentage has not been implemented yet')
 
-	# size[0] = percentage, size[1] is type of specified space
-	size_buf = role_variables['size'].split()
+	if 'FREE' in role_variables['size']:
+		# need to look at the before and after allocation
+		if len(role_variables['disks']) is not 0:
+			expected_name = '/dev/' + role_variables['disks'][0]
+
+			# Can't use grep as that only gives us the single column of info 
+			pvdisplay_cmd = "sudo pvdisplay %s | grep PE\ Size" % expected_name
+			pvdisplay_buf = subprocess.check_output(pvdisplay_cmd, shell=True).split()
+
+			remaining_space = pvdisplay_buf[2] + ' ' + pvdisplay_buf[3]
+			lvs_list = [ {'name': '/dev/mapper/', 'size': '10 MB'} ]
+
+			# Probably not necessary atm
+			if 'mib' in remaining_space.lower():
+				remaining_space = remaining_space.lower().replace('mib', 'mb')
+			elif 'gib' in remaining_space.lower():
+				remaining_space = remaining_space.lower().replace('gib', 'gb')
+
+			fail_reasons.append('Check failed as %FREE has no been fully implemented yet.')
+			failed = True
+		else:
+			fail_reasons.append('Check failed as length of the user supplied list of disks is empty')
+			failed = True
+	elif 'VG' in role_variables['size']:
+		fail_reasons.append('Check failed as %VG of the verify_size_percentage function has not been implemented yet.')
+		failed = True
+	elif 'PV' in role_variables['size']:
+		fail_reasons.append('Check failed as %PV of the verify_size_percentage function has not been implemented yet.')
+		failed = True
+	else:
+		fail_reasons.append('Check failed as user must have inputted an incorrect format for size. [FREE|VG|PV]')
+		failed = True
 
 	return failed 
 
