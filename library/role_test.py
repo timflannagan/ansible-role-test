@@ -148,37 +148,60 @@ def verify_fs_type(role_variables, fail_reasons):
 
 	return failed
 
+def verify_other_logical_volumes(role_variables, fail_reasons):
+	failed = False 
+	fail_reasons.append('Check failed as this is not implemented yet.')
+	return failed
+
+def verify_free_size_percentage(role_variables, fail_reasons):
+	failed = False
+	implemented = True
+
+	if not implemented:
+		fail_reasons.append('Check failed as %FREE size has not been added to the verification function.')
+		return True
+
+	if len(role_variables['disks']) is not 0:
+		# Need to calculate the before and after the logical volume had been mounted
+		expected_name = '/dev/' + role_variables['disks'][0]
+
+		pvs_cmd = "sudo pvs %s --no-headings | awk '{ print $5, $6 }'" % expected_name
+		pvs_buf = subprocess.check_output(pvs_cmd, shell=True).split()
+
+		# pvs_buf[0] = total size, pvs_buf[1] = total_free
+		if len(pvs_buf) is not 2:
+			fail_reasons.append('Check failed as the length of the pvs output is less than the expected length.')
+			return True 
+
+		# Initialize necessary variables
+		expected_percentage = float(role_variables['size'].split('%')[0]) * 0.01
+		total_space = float(pvs_buf[0].replace('<', '').replace('g', '').replace('m', ''))
+		remaining_space = float(pvs_buf[1].replace('<', '').replace('g', '').replace('m', ''))
+		
+		debug_value = int(role_variables['size'].split('%')[0]) + (expected_percentage * total_space)
+
+		if debug_value != total_space:
+			failed = verify_other_logical_volumes(role_variables, fail_reasons)
+			# fail_reasons.append('DEBUG: %s (theres probably more LVs on the disk %s' % (debug_value, expected_name))
+			# failed = True
+
+	else:
+		fail_reasons.append('Check failed as user entered an empty disks list (not sure how to handle this atm.)')
+		failed = True
+
+
+	return failed
+
 def verify_size_percentage(role_variables, fail_reasons):
 	failed = False 
 
 	if 'FREE' in role_variables['size']:
-		# need to look at the before and after allocation
-		if len(role_variables['disks']) is not 0:
-			expected_name = '/dev/' + role_variables['disks'][0]
-
-			# Can't use grep as that only gives us the single column of info 
-			pvdisplay_cmd = "sudo pvdisplay %s | grep PE\ Size" % expected_name
-			pvdisplay_buf = subprocess.check_output(pvdisplay_cmd, shell=True).split()
-
-			remaining_space = pvdisplay_buf[2] + ' ' + pvdisplay_buf[3]
-			lvs_list = [ {'name': '/dev/mapper/', 'size': '10 MB'} ]
-
-			# Probably not necessary atm
-			if 'mib' in remaining_space.lower():
-				remaining_space = remaining_space.lower().replace('mib', 'mb')
-			elif 'gib' in remaining_space.lower():
-				remaining_space = remaining_space.lower().replace('gib', 'gb')
-
-			fail_reasons.append('Check failed as %FREE has no been fully implemented yet.')
-			failed = True
-		else:
-			fail_reasons.append('Check failed as length of the user supplied list of disks is empty')
-			failed = True
+		failed = verify_free_size_percentage(role_variables, fail_reasons)		
 	elif 'VG' in role_variables['size']:
 		fail_reasons.append('Check failed as %VG of the verify_size_percentage function has not been implemented yet.')
 		failed = True
-	elif 'PV' in role_variables['size']:
-		fail_reasons.append('Check failed as %PV of the verify_size_percentage function has not been implemented yet.')
+	elif 'PVS' in role_variables['size']:
+		fail_reasons.append('Check failed as %PVS of the verify_size_percentage function has not been implemented yet.')
 		failed = True
 	else:
 		fail_reasons.append('Check failed as user must have inputted an incorrect format for size. [FREE|VG|PV]')

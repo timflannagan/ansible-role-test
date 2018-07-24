@@ -10,6 +10,7 @@ To-Do:
 2. Implement the verify_size_percentage function
     - This should be the last big thing to implement
 3. Refactor the return value on most of these functions
+4. Clean up redundant functions 
 
 Current Problems:
 =====
