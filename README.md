@@ -10,9 +10,14 @@ To-Do:
 2. Implement the verify_size_percentage function
     - This should be the last big thing to implement
 3. Refactor the return value on most of these functions
-4. Clean up redundant functions 
+4. Clean up redundant functions
+5. Don't need to worry about %FREE except in the default 100%FREE specification
+6. Test the %VG function with MB data instead of GB
+	- This needs to be refactored some point soon
+7. Modify the parameters being passes to most functions
+	- Some of the helper functions are being passed data they don't need to touch 
+8. Fix indentation (python -m tabnanny [file_name])
 
 Current Problems:
 =====
-- Figure out how to find free space in a volume group
-- Figure out what other byte sizes are used in size variable, for verify_size method
+- None
