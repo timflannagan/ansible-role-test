@@ -20,6 +20,7 @@ To-Do:
 	- The helper function for verify_pv_size_percentage could use this too.
 	- Assuming that this isn't the greatest idea.
 9. verify_vg_size_percentage is very messy atm.
+10. Re-implement verify_disk_mount
 
 Current Problems:
 =====
