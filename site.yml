@@ -1,0 +1,39 @@
+---
+- hosts: localhost
+  become: true
+
+  tasks:
+    # - name: test1
+    #   role_test:
+    #     device_name: 'test1'
+    #     disks: ['vdb']
+    #     lvm_vg: 'foo'
+    #     mount_point: '/opt/test1'
+    #     size: '5g'
+    #   register: test1_results
+
+    - name: test2 
+      role_test:
+        device_name: 'test2'
+        disks: ['vdb']
+        fs_type: 'ext4'
+        lvm_vg: 'foo'
+        size: '70%FREE'
+        mount_point: '/opt/test2'
+      register: test2_results
+
+    - name: test3
+      role_test:
+        device_type: 'disk'
+        disks: ['vdc']
+        mount_point: '/opt/test3'
+      register: test3_results
+
+    # - name: Debug test1 results
+    #   debug: var=test1_results
+
+    - name: Debug test2 results
+      debug: var=test2_results
+
+    - name: Debug test3 results
+      debug: var=test3_results
