@@ -85,40 +85,124 @@ def verify_absent_state(role_dict, test_run_results):
     return was_failed
 
 def verify_present_default_size(role_dict, failed_tests):
-	return True
+    was_failed = True
+    failed_tests.append('Check failed as default_size has not yet been implemented.')
+    return was_failed
+
+def vg_percentage_size(device_name, lvm_vg_name, size, failed_tests):
+    was_failed = False
+
+    try:
+        vgs_cmd = "sudo vgs %s -o free,size --no-headings --units g" % lvm_vg_name
+        vgs_buf = subprocess.check_output(vgs_cmd, shell=True).split()
+
+        lvs_cmd = "sudo lvs %s -o name,size --no-headings --units g" % lvm_vg_name
+        vgs_buf = subprocess.check_output(vgs_cmd, shell=True).split()
+    except subprocess.CalledProcessError as e:
+        failed_tests.append('Check failed as the vgs/lvs command did not recognize the lvm vg name given.')
+        return True
+
+    if len(vgs_buf) is not 2 or len(lvs_buf) < 2:
+        failed_tests.append('Check failed as the vgs command output does not meet the required length.')
+        return True
+
+    if device_name in lvs_buf:
+        index = lvs_buf.index(device_name)
+    else:
+        failed_tests.append('Check failed as the device name (%s) was not found in the lvs buffer.' % device_name)
+        return True
+
+    total_size = float(vgs_buf[1].replace('g', ''))
+    actual_size = float(lvs_buf[index + 1].replace('g', ''))
+    remaining_space = float(vgs_buf[1].replace('g', ''))
+    expected_percentage = float(size.split('%')[0]) * 0.01
+
+    expected_size = expected_percentage * total_size
+
+    if expected_size != actual_size:
+        tests_failed..apend('Check failed as the expected and actual sizes differ: %f -> %f' % (expected_size, actual_size))
+        was_failed = True
+
+    return was_failed
 
 def verify_present_percentage_size(role_dict, failed_tests):
-	return True
+    '''Verify the percentage in the size parameter matches up the size in the system.'''
+    was_failed = False
 
-def verify_present_specified_size(role_dict, failed_tests):
-	return True
+    if 'VG' in role_dict['size']:
+        was_failed = vg_percentage_size(role_dict['device_name'], role_dict['lvm_vg'], role_dict['size'], failed_tests)
+    elif 'PVS' in role_dict['size']:
+        failed_tests.append('Check failed as %PVS has not yet been implemented.')
+        was_failed = True
+    else:
+        failed_tests.append('Check failed as this module has no way to test %FREE atm.')
+        was_failed = True
+
+    return was_failed
+
+def verify_present_specified_size(device_name, lvm_vg_name, size, failed_tests):
+    '''Check if the variables listed in the parameter list match the info presented in lvs command output.'''
+    was_failed = False 
+
+    try:
+        lvs_cmd = "sudo lvs %s -o name,size --no-headings --units g" % lvm_vg_name 
+        lvs_buf = subprocess.check_output(lvs_cmd, shell=True).split()
+    except subprocess.CalledProcessError as e:
+        failed_tests.append('Check failed as the lvs command did not recognize the lvm vg name given.')
+        return True
+
+    if len(lvs_buf) < 2:
+        fail_reasons.append('Check failed as lvs command failed to output correct fields in specified_value.')
+        return True
+
+    if device_name in lvs_buf:
+        index = lvs_buf.index(device_name)
+    else:
+        failed_tests.append('Check failed as the device name (%s) was not present in the lvs command output.' % device_name)
+        return True
+
+    if (index + 1) >= len(lvs_buf):
+        failed_tests.append('Debug: something went wrong in the lvs output grab.')
+        return True
+
+    index += 1
+    size = float(size.replace('g', ''))
+    lvs_buf[index] = float(lvs_buf[index].replace('g', ''))
+
+    if lvs_buf[index] != size:
+        fail_reasons.append('Check failed as the size parameter and size listed in lvs command differ: %f -> %f' % (lvs_buf[index], size))
+        was_failed = True
+
+    return was_failed
 
 def verify_present_size(role_dict, failed_tests):
-	'''Check the format of the size variable in role_dict, and call the corresponding verification function.'''
-	was_failed = False
+    '''Check the format of the size variable in role_dict, and call the corresponding verification function.'''
+    was_failed = False
 
-	if role_dict['size'] is None or role_dict['size'] in '100%FREE':
-		was_failed = verify_present_default_size(role_dict, failed_tests)
-	else if role_dict['size'] is not None and '%' in role_dict['size']:
-		was_failed = verify_present_percentage_size(role_dict, failed_tests)
-	else:
-		was_failed = verify_present_specified_size(role_dict, failed_tests)
+    if role_dict['size'] is None or role_dict['size'] in '100%FREE':
+        was_failed = verify_present_default_size(role_dict, failed_tests)
+    elif role_dict['size'] is not None and '%' in role_dict['size']:
+        was_failed = verify_present_percentage_size(role_dict, failed_tests)
+    else:
+        was_failed = verify_present_specified_size(role_dict['device_name'], role_dict['lvm_vg'], role_dict['size'], failed_tests)
 
-	return was_failed
+    return was_failed
 
 def verify_present_state(role_dict, test_run_results):
     '''Driver function that handles verification when state is set as present.'''
     was_failed = False
-    implemented = False
+    implemented = True
 
     if not implemented:
         test_run_results['tests_failed'].append('Check failed as verify_present_state is not yet implemented.')
         return True
 
     if verify_present_size(role_dict, test_run_results['tests_failed']):
-    	was_failed = True
+        was_failed = True
     else:
-    	tests_run_results['num_successes'] += 1
+        test_run_results['num_successes'] += 1
+
+    test_run_results['num_tests'] += 1
 
     return was_failed
 
