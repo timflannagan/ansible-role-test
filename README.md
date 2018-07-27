@@ -5,13 +5,11 @@ Runs an ansible playbook and verifies those results against available system inf
 
 To-Do:
 ======
-2. Determine what to do with %FREE option later.
-3. Check if eliminating the whitespace in the AnsibleModule parameters is too unreadable.
-4. Figure out the standard with pylint constants (invalid variable name).
-5. Implement verify_present_default_size function.
-6. Refactor the error messages.
-7. Might need to test a PV with multiple VGs to see if that breaks any of the size verification functions.
-8. Look at the PEP8 standards for line-to-long errors
+1. Check if eliminating the whitespace in the AnsibleModule parameters is too unreadable.
+2. Refactor the error messages.
+3. Look at the PEP8 standards for line-to-long errors.
+4. Run playbook again to test error messages.
+	- Had to split the line up, but the JSON output may capture that as a newline.
 
 Current Problems:
 =====
@@ -23,3 +21,5 @@ Current Problems:
 Notes/Issues:
 =====
 1. When calling any of the %[SIZE] options for the size variable, and there's an existing LV, it will resize that LV if there's free space. For the VG "foo", there were two LV's: test1, and test2. When calling the current playbook with the variable's roles, it kept one of the LV's the same, but changed the other from 7G to 10G (50% of the VG.)
+2. Run the playbook to configure system that has a PV with more than one VG in order to test some of the functions.
+	- I assume that the len(some_buf) statements would most likely lead in error messsages being produced.

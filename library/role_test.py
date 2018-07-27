@@ -6,6 +6,74 @@ import subprocess
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils import facts
 
+ANSIBLE_METEDATA = {
+    'metadata_version': '1.0',
+    'status': ['preview'],
+    'supported_by': 'community'
+}
+
+DOCUMENTATION = '''
+---
+module: role_test
+short_description: Verify that the previous run role matches system information.
+version_added: "2.6"
+description:
+    - "Module uses the same parameters as the previous run role, and runs various
+    tests depending on the values of the state and device_type variables"
+options:
+    - See https://github.com/dwlehman/linux-storage-role for usage of variables
+author:
+    - Tim Flannagan (tflannag@redhat.com)
+'''
+
+EXAMPLES = '''
+- include_role:
+    name: ../linux-storage-role
+  vars:
+    device_name: 'test1'
+    disks: ['vdb']
+    lvm_vg: 'rhel_ibm'
+    mount_point: '/opt/test1'
+    size: '13g'
+
+- name: Check test1 results 
+  role_test:
+    device_name: 'test1'
+    disks: ['vdb']
+    lvm_vg: 'rhel_ibm'
+    mount_point: '/opt/test1'
+    size: '13g'
+  register: test1_results 
+
+- include_role:
+    name: ../linux-storage-role
+  vars:
+    device_type: 'disk'
+    mount_point: '/opt/test2'
+    disks: ['vdc']
+
+- name: Check test2 results 
+  role_test:
+    device_type: 'disk'
+    disks: ['vdc']
+    mount_point: '/opt/test2'
+  register: test2_results
+'''
+
+RETURN = '''
+num_tests:
+    description: The number of main tests used to verify role information"
+    type: int
+
+num_successes:
+    descrption: The number of successful tests run
+    type: int
+
+failed_tests:
+    description: A list of failed tests with error/debugging messages
+    type: list
+'''
+
 def verify_absent_fstab_info(role_dict, failed_tests):
     '''Check if the info specified in the role_dict is absent in the /etc/fstab file.'''
     found_line = False
@@ -30,6 +98,8 @@ def verify_absent_fstab_info(role_dict, failed_tests):
         failed_tests.append('Check failed as there is still info about device in /etc/fstab file.')
         return True
 
+    return False
+
 def absent_disk_helper(role_dict, failed_tests):
     '''Verify that the specified disk is unmounted, but present in lsblk output.'''
     expected_name = '/dev/' + role_dict['disks'][0]
@@ -45,6 +115,8 @@ def absent_disk_helper(role_dict, failed_tests):
         failed_tests.append('Check failed as disk is not present in lsblk buffer.')
         return True
 
+    return False
+
 def absent_lvm_helper(role_dict, failed_tests):
     '''Verify that the specified lvm device is not present in lvs command output.'''
     try:
@@ -57,6 +129,8 @@ def absent_lvm_helper(role_dict, failed_tests):
         failed_tests.append('Check failed as device name %s was found in \
             lvs output when run in absent state.' % role_dict['device_name'])
         return True
+
+    return False
 
 def verify_absent_mount_info(role_dict, failed_tests):
     '''Run helper functions and return the was_failed flag.'''
@@ -91,7 +165,6 @@ def verify_present_default_size(role_dict, failed_tests):
     '''Check if there is any free space left over after using default size.'''
     was_failed = True
 
-    # Just need to check if the free space remaining is 0
     try:
         pvs_cmd = "sudo pvs /dev/%s -o free,size --no-headings --units g" % role_dict['disks'][0]
         pvs_buf = subprocess.check_output(pvs_cmd, shell=True).split()
@@ -121,8 +194,7 @@ def pv_percentage_size(role_dict, failed_tests):
         lvs_cmd = "sudo lvs %s -o name,size --no-headings --units g" % role_dict['lvm_vg']
         lvs_buf = subprocess.check_output(lvs_cmd, shell=True).split()
 
-        pvs_cmd = "sudo pvs /dev/%s -o vg_name,free,size --no-\
-            headings --units g" % role_dict['disks'][0]
+        pvs_cmd = "sudo pvs /dev/%s -o vg_name,free,size --no-headings --units g" % role_dict['disks'][0]
         pvs_buf = subprocess.check_output(pvs_cmd, shell=True).split()
     except subprocess.CalledProcessError as error_msg:
         failed_tests.append('Error: %s' % error_msg)
