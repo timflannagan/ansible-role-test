@@ -91,6 +91,54 @@ def verify_present_default_size(role_dict, failed_tests):
     failed_tests.append('Check failed as default_size has not yet been implemented.')
     return was_failed
 
+def pv_percentage_size(role_dict, failed_tests):
+    was_failed = False
+
+    try:
+        lvs_cmd = "sudo lvs %s -o name,size --no-headings --units g" % role_dict['lvm_vg']
+        lvs_buf = subprocess.check_output(lvs_cmd, shell=True).split()
+
+        pvs_cmd = "sudo pvs /dev/%s -o vg_name,free,size --no-headings --units g" % role_dict['disks'][0]
+        pvs_buf = subprocess.check_output(pvs_cmd, shell=True).split()
+    except subprocess.CalledProcessError as e:
+        failed_tests.append('Error: %s' % e)
+        failed_tests.append('Check failed as the pvs/lvs command did not recognize the lvm vg name (%s) given.' % role_dict['lvm_vg'])
+        return True
+
+    if (len(pvs_buf) < 3) or (len(lvs_buf) < 2):
+        failed_tests.append('Check failed as the length of the pvs buffer is the required size in %PV.')
+        return True 
+
+    if role_dict['lvm_vg'] in pvs_buf:
+        pvs_index = pvs_buf.index(role_dict['lvm_vg'])
+    else:
+        failed_tests.append('Check failed as %s is not present in the pvs command output.' % role_dict['lvm_vg'])
+        return True
+
+    if (pvs_index + 2) >= len(pvs_buf):
+        failed_tests.append('Debug check: something went wrong when the index pulled from the vg name in pvs buffer.')
+        return True
+
+    if role_dict['device_name'] in lvs_buf:
+        lvs_index = lvs_buf.index(role_dict['device_name'])
+    else:
+        failed_tests.append('Check failed as %s is not present in the lvs command output.' % role_dict['device_name'])
+        return True
+
+    total_pv_size = float(pvs_buf[pvs_index + 2].replace('g', ''))
+    free_space = float(pvs_buf[pvs_index + 1].replace('g', ''))
+    expected_percentage = float(role_dict['size'].split('%')[0]) * 0.01
+    actual_size = float(lvs_buf[lvs_index + 1].replace('g', ''))
+
+    expected_size = total_pv_size * expected_percentage
+
+    if expected_size != actual_size:
+        if free_space != 0.0:
+            tests_failed.append('Check failed as the expected size and actual size differ (%PV): %d -> %d' % (expected_size, actual_size))
+            failed = True
+
+    return was_failed
+
 def vg_percentage_size(device_name, lvm_vg_name, size, failed_tests):
     was_failed = False
 
@@ -122,8 +170,9 @@ def vg_percentage_size(device_name, lvm_vg_name, size, failed_tests):
     expected_size = expected_percentage * total_size
 
     if expected_size != actual_size:
-        tests_failed.apend('Check failed as the expected and actual sizes differ: %f -> %f' % (expected_size, actual_size))
-        was_failed = True
+        if remaining_space != 0.0:
+            failed_tests.append('Check failed as the expected and actual sizes differ: %f -> %f' % (expected_size, actual_size))
+            was_failed = True
 
     return was_failed
 
@@ -134,8 +183,7 @@ def verify_present_percentage_size(role_dict, failed_tests):
     if 'VG' in role_dict['size']:
         was_failed = vg_percentage_size(role_dict['device_name'], role_dict['lvm_vg'], role_dict['size'], failed_tests)
     elif 'PVS' in role_dict['size']:
-        failed_tests.append('Check failed as %PVS has not yet been implemented.')
-        was_failed = True
+        was_failed = pv_percentage_size(role_dict, failed_tests)
     else:
         failed_tests.append('Check failed as this module has no way to test %FREE atm.')
         was_failed = True
@@ -193,6 +241,7 @@ def verify_present_size(role_dict, failed_tests):
 def verify_present_fstab_info(role_dict, failed_tests):
     was_failed = False
     device_was_found = True
+    line_buf = []
 
     if role_dict['device_type'] is not None and role_dict['device_type'] in 'disk':
         device = role_dict['disks'][0]
@@ -272,11 +321,6 @@ def verify_present_lsblk_info(role_dict, failed_tests):
 def verify_present_state(role_dict, test_run_results):
     '''Driver function that handles verification when state is set as present.'''
     was_failed = False
-    implemented = True
-
-    if not implemented:
-        test_run_results['tests_failed'].append('Check failed as verify_present_state is not yet implemented.')
-        return True
 
     if verify_present_size(role_dict, test_run_results['tests_failed']):
         was_failed = True

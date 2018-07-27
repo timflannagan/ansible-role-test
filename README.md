@@ -5,9 +5,6 @@ Runs an ansible playbook and verifies those results against available system inf
 
 To-Do:
 ======
-1. Implement verify_present_status.
-	- For disks: verify that the mount and file system (and correct type) is correct in fstab/lsblk
-	- For lvm: verify role variables against fstab/lsblk, but also verify the lv (device_name) created is present in the 'lvs' cmd.
 2. Finish the percentage size verification functions for last.
 
 Current Problems:
