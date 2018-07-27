@@ -5,7 +5,13 @@ Runs an ansible playbook and verifies those results against available system inf
 
 To-Do:
 ======
-2. Finish the percentage size verification functions for last.
+2. Determine what to do with %FREE option later.
+3. Check if eliminating the whitespace in the AnsibleModule parameters is too unreadable.
+4. Figure out the standard with pylint constants (invalid variable name).
+5. Implement verify_present_default_size function.
+6. Refactor the error messages.
+7. Might need to test a PV with multiple VGs to see if that breaks any of the size verification functions.
+8. Look at the PEP8 standards for line-to-long errors
 
 Current Problems:
 =====
